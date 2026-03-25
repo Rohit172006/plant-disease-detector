@@ -1,0 +1,70 @@
+{
+  "validation_accuracy": 0.9822393822393822,
+  "num_classes": 7,
+  "class_names": [
+    "Apple___Apple_scab",
+    "Apple___Black_rot",
+    "Apple___Cedar_apple_rust",
+    "Apple___healthy",
+    "Blueberry___healthy",
+    "Cherry_(including_sour)___Powdery_mildew",
+    "Cherry_(including_sour)___healthy"
+  ],
+  "classification_report": {
+    "Apple___Apple_scab": {
+      "precision": 0.972972972972973,
+      "recall": 0.972972972972973,
+      "f1-score": 0.972972972972973,
+      "support": 111.0
+    },
+    "Apple___Black_rot": {
+      "precision": 0.9869281045751634,
+      "recall": 1.0,
+      "f1-score": 0.993421052631579,
+      "support": 151.0
+    },
+    "Apple___Cedar_apple_rust": {
+      "precision": 1.0,
+      "recall": 0.9791666666666666,
+      "f1-score": 0.9894736842105263,
+      "support": 48.0
+    },
+    "Apple___healthy": {
+      "precision": 0.9939577039274925,
+      "recall": 0.9563953488372093,
+      "f1-score": 0.9748148148148148,
+      "support": 344.0
+    },
+    "Blueberry___healthy": {
+      "precision": 0.9561128526645768,
+      "recall": 1.0,
+      "f1-score": 0.9775641025641025,
+      "support": 305.0
+    },
+    "Cherry_(including_sour)___Powdery_mildew": {
+      "precision": 0.9883040935672515,
+      "recall": 0.9883040935672515,
+      "f1-score": 0.9883040935672515,
+      "support": 171.0
+    },
+    "Cherry_(including_sour)___healthy": {
+      "precision": 1.0,
+      "recall": 0.9878787878787879,
+      "f1-score": 0.9939024390243902,
+      "support": 165.0
+    },
+    "accuracy": 0.9822393822393822,
+    "macro avg": {
+      "precision": 0.9854679611010653,
+      "recall": 0.9835311242746984,
+      "f1-score": 0.9843504513979482,
+      "support": 1295.0
+    },
+    "weighted avg": {
+      "precision": 0.9826733698877244,
+      "recall": 0.9822393822393822,
+      "f1-score": 0.9822305527465989,
+      "support": 1295.0
+    }
+  }
+}

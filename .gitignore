@@ -1,0 +1,29 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual env
+venv/
+env/
+.env
+
+# Dataset (too large for git)
+dataset/
+
+# Dev files
+*.ipynb
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Keep output models
+# But ignore large unnecessary files
+output/plant_disease_model_full.pth
+output/best_model.pth
