@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torchvision import models, transforms
 from PIL import Image
 from flask import Flask, request, jsonify, render_template_string
+from disease_info import DISEASE_INFO
 
 # ============================================================
 # Configuration
@@ -40,7 +41,7 @@ def load_model():
     """Load trained model from .pkl file."""
     print("[INFO] Loading model...")
     model_package = joblib.load(PKL_PATH)
-    
+
     num_classes = model_package['num_classes']
     model = models.mobilenet_v2(weights=None)
     in_features = model.classifier[1].in_features
@@ -56,15 +57,16 @@ def load_model():
         nn.Dropout(0.3),
         nn.Linear(256, num_classes)
     )
-    
+
     model.load_state_dict(model_package['model_state_dict'])
     model.eval()
-    
+
     print(f"[INFO] Model loaded: {model_package['model_name']}")
     print(f"[INFO] Classes: {num_classes}")
     print(f"[INFO] Accuracy: {model_package['accuracy']*100:.2f}%")
-    
+
     return model, model_package
+
 
 # Load on startup
 model, model_package = load_model()
@@ -76,85 +78,44 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# Disease info database
-DISEASE_INFO = {
-    "Apple___Apple_scab": {
-        "plant": "Apple",
-        "disease": "Apple Scab",
-        "description": "A fungal disease caused by Venturia inaequalis that creates dark, scabby lesions on leaves and fruit.",
-        "treatment": "Apply fungicides like captan or myclobutanil. Remove fallen leaves. Plant resistant varieties.",
-        "severity": "Moderate"
-    },
-    "Apple___Black_rot": {
-        "plant": "Apple",
-        "disease": "Black Rot",
-        "description": "Caused by the fungus Botryosphaeria obtusa. Creates brown lesions with dark borders on leaves.",
-        "treatment": "Prune dead wood, remove mummified fruits. Apply fungicides during growing season.",
-        "severity": "High"
-    },
-    "Apple___Cedar_apple_rust": {
-        "plant": "Apple",
-        "disease": "Cedar Apple Rust",
-        "description": "A fungal disease requiring both apple and cedar/juniper trees to complete its lifecycle.",
-        "treatment": "Remove nearby cedar/juniper trees. Apply protective fungicides in spring.",
-        "severity": "Moderate"
-    },
-    "Apple___healthy": {
-        "plant": "Apple",
-        "disease": "Healthy",
-        "description": "The leaf appears healthy with no signs of disease.",
-        "treatment": "Continue regular care and monitoring.",
-        "severity": "None"
-    },
-    "Blueberry___healthy": {
-        "plant": "Blueberry",
-        "disease": "Healthy",
-        "description": "The leaf appears healthy with no signs of disease.",
-        "treatment": "Continue regular care and monitoring.",
-        "severity": "None"
-    },
-    "Cherry_(including_sour)___Powdery_mildew": {
-        "plant": "Cherry",
-        "disease": "Powdery Mildew",
-        "description": "A fungal disease that creates white powdery spots on leaves, reducing photosynthesis.",
-        "treatment": "Apply sulfur-based fungicides. Improve air circulation. Remove infected parts.",
-        "severity": "Moderate"
-    },
-    "Cherry_(including_sour)___healthy": {
-        "plant": "Cherry",
-        "disease": "Healthy",
-        "description": "The leaf appears healthy with no signs of disease.",
-        "treatment": "Continue regular care and monitoring.",
-        "severity": "None"
-    },
-}
-
 def predict_image(image_bytes):
-    """Run prediction on image bytes."""
+    """Run prediction on image bytes and return top-5 results."""
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     img_tensor = transform(img).unsqueeze(0)
-    
+
     with torch.no_grad():
         outputs = model(img_tensor)
         probs = F.softmax(outputs, dim=1)[0]
-    
+
     top5_probs, top5_indices = probs.topk(min(5, len(probs)))
     idx_to_class = model_package.get('idx_to_class', {})
-    
+
     results = []
     for prob, idx in zip(top5_probs, top5_indices):
-        class_name = idx_to_class.get(str(idx.item()), idx_to_class.get(idx.item(), f"Class_{idx.item()}"))
+        class_name = idx_to_class.get(
+            str(idx.item()),
+            idx_to_class.get(idx.item(), f"Class_{idx.item()}")
+        )
         info = DISEASE_INFO.get(class_name, {})
+        plant_fallback = (
+            class_name.split('___')[0].replace('_', ' ')
+            if '___' in class_name else 'Unknown'
+        )
+        disease_fallback = (
+            class_name.split('___')[1].replace('_', ' ')
+            if '___' in class_name else 'Unknown'
+        )
         results.append({
             'class_name': class_name,
             'confidence': round(prob.item() * 100, 2),
-            'plant': info.get('plant', class_name.split('___')[0].replace('_', ' ') if '___' in class_name else 'Unknown'),
-            'disease': info.get('disease', class_name.split('___')[1].replace('_', ' ') if '___' in class_name else 'Unknown'),
+            'plant': info.get('plant', plant_fallback),
+            'disease': info.get('disease', disease_fallback),
             'description': info.get('description', ''),
-            'treatment': info.get('treatment', ''),
+            'organic_treatment': info.get('organic_treatment', 'No organic treatment info available.'),
+            'inorganic_treatment': info.get('inorganic_treatment', 'No inorganic treatment info available.'),
             'severity': info.get('severity', 'Unknown'),
         })
-    
+
     return results
 
 # ============================================================
@@ -509,9 +470,16 @@ HTML_TEMPLATE = """
         
         .info-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 16px;
             margin-top: 20px;
+        }
+        
+        .treatment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
         }
         
         .info-box {
@@ -521,13 +489,29 @@ HTML_TEMPLATE = """
             padding: 16px;
         }
         
+        .info-box.organic {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+        
+        .info-box.inorganic {
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+        }
+        
         .info-box h4 {
             font-size: 0.75rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
+        
+        .info-box.organic h4 { color: var(--accent-emerald); }
+        .info-box.inorganic h4 { color: var(--accent-blue); }
         
         .info-box p {
             font-size: 0.88rem;
@@ -615,7 +599,7 @@ HTML_TEMPLATE = """
         }
         
         @media (max-width: 640px) {
-            .info-grid { grid-template-columns: 1fr; }
+            .treatment-grid { grid-template-columns: 1fr; }
             .confidence-item .label { width: 140px; font-size: 0.7rem; }
             .header h1 { font-size: 1.6rem; }
             .upload-section { padding: 24px; }
@@ -783,9 +767,15 @@ curl -X POST -F "file=@leaf.jpg" http://localhost:5000/predict
                         <h4>📋 Description</h4>
                         <p>${top.description || 'No description available.'}</p>
                     </div>
-                    <div class="info-box">
-                        <h4>💊 Treatment</h4>
-                        <p>${top.treatment || 'No treatment info available.'}</p>
+                </div>
+                <div class="treatment-grid">
+                    <div class="info-box organic">
+                        <h4>🌿 Organic Treatment</h4>
+                        <p>${top.organic_treatment || 'No organic treatment info available.'}</p>
+                    </div>
+                    <div class="info-box inorganic">
+                        <h4>🧪 Inorganic Treatment</h4>
+                        <p>${top.inorganic_treatment || 'No inorganic treatment info available.'}</p>
                     </div>
                 </div>
             `;
