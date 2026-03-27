@@ -27,7 +27,7 @@ dataset/
 output/plant_disease_model_full.pth
 output/best_model.pth
 output/*.pth
-output/plant_disease_model.pkl
+# NOTE: plant_disease_model.pkl is NOT ignored — needed for deployment
 
 # ========================
 # Jupyter Notebooks

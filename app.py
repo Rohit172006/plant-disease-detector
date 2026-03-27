@@ -61,6 +61,10 @@ def load_model():
     model.load_state_dict(model_package['model_state_dict'])
     model.eval()
 
+    # Ensure idx_to_class has string keys for reliable lookup
+    if 'idx_to_class' in model_package:
+        model_package['idx_to_class'] = {str(k): v for k, v in model_package['idx_to_class'].items()}
+
     print(f"[INFO] Model loaded: {model_package['model_name']}")
     print(f"[INFO] Classes: {num_classes}")
     print(f"[INFO] Accuracy: {model_package['accuracy']*100:.2f}%")
