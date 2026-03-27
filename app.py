@@ -30,6 +30,7 @@ from disease_info import DISEASE_INFO
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 PKL_PATH = os.path.join(OUTPUT_DIR, "plant_disease_model.pkl")
+DEVICE = torch.device('cpu')
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
@@ -58,7 +59,11 @@ def load_model():
         nn.Linear(256, num_classes)
     )
 
-    model.load_state_dict(model_package['model_state_dict'])
+    state_dict = model_package['model_state_dict']
+    # Ensure all tensors are mapped to CPU
+    state_dict = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict)
+    model.to(DEVICE)
     model.eval()
 
     # Ensure idx_to_class has string keys for reliable lookup
@@ -85,7 +90,7 @@ transform = transforms.Compose([
 def predict_image(image_bytes):
     """Run prediction on image bytes and return top-5 results."""
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    img_tensor = transform(img).unsqueeze(0)
+    img_tensor = transform(img).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
         outputs = model(img_tensor)
